@@ -5,16 +5,21 @@ from pathlib import Path
 import bs4
 from dateutil.parser import parse
 from subprocess import check_output
-from logging import getLogger
+import logging
+import sys
 
-thread_log = getLogger("thread_logger")
+thread_log = logging.getLogger("thread_logger")
 thread_log.setLevel("DEBUG")
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+thread_log.addHandler(handler)
+
 
 base_source_url = "https://portal.cisjr.cz"
 base_source_path = f"{base_source_url}/pub/draha/celostatni/szdc/2022/"
-base_path = Path("data/")
+parent_dir = Path(__file__).parent.absolute()
+base_path = parent_dir.joinpath("data")
 base_path.mkdir(exist_ok=True)
-
 
 def unzip_files(dir: Path):
     """
@@ -42,6 +47,7 @@ def download_files_in_dir(data: bs4.BeautifulSoup, dir: Path):
     :type dir: pathlib.Path
     """
 
+    thread_log.info(f"Downloading files to {dir}")
     for l in data.find_all("a"):
         if not l.text.endswith(".zip"): continue
         with urlopen(base_source_url + l["href"]) as f:
@@ -49,6 +55,7 @@ def download_files_in_dir(data: bs4.BeautifulSoup, dir: Path):
         assert zip_data
         with dir.joinpath(l.text).open("wb") as zip_f:
             zip_f.write(zip_data)
+            thread_log.info(f"Downloaded {l.text}")
     thread_log.info(f"Downloaded all files into {dir}")
 
 
@@ -58,7 +65,6 @@ def worker(url):
     
     :param url: tuple of (url, dir_name)
     """
-    
     # Get list of file URLs in the directory
     sub_dir = Path(f"{base_path}/{url[1]}")
     sub_dir.mkdir(exist_ok=True)
@@ -69,7 +75,6 @@ def worker(url):
 
     # Download all files in a directory
     download_files_in_dir(data, sub_dir)
-    unzip_files(sub_dir)
     thread_log.info(f"Finished processing {url[0]}")
 
 
@@ -94,9 +99,11 @@ def prepare_files():
 
     # Recursively download all from each directory and gunzip it
     with ThreadPoolExecutor(max_workers=11) as executor:
+        thread_log.info("Starting threads")
         executor.map(worker, links)
-
-
+    for d in base_path.iterdir():
+        unzip_files(d)
+        
 
 def main():
     prepare_files()

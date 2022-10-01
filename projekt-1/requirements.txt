@@ -3,3 +3,5 @@ beautifulsoup4
 pathlib
 python-dateutil
 pymongo
+click
+python-dotenv

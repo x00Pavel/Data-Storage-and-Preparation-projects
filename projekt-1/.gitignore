@@ -1,4 +1,7 @@
 */data/
-*/mongo_db/
+*db*/
 *.zip
 *.xml
+*__*
+.*
+*.pdf

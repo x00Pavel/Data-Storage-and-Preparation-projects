@@ -8,9 +8,11 @@ services:
     restart: always
     ports:
       - 27017:27017
+    volumes:
+      - ./db_data:/data/db:rw
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_ROOT_USERNAME: "${USER}"
+      MONGO_INITDB_ROOT_PASSWORD: "${PASSWORD}"
 
   mongo-express:
     image: mongo-express

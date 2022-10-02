@@ -1,11 +1,21 @@
 #!/bin/python3
+import logging
+
 import click
 
-from downloader import Downloader
-from common import update_object
+from upaproject import thread_log
+from upaproject.downloader import Downloader
+
+# from upaproject import update_object
+
 
 @click.group()
-def cli():
+@click.option("--debug/--no-debug", default=False)
+def cli(debug):
+    if debug:
+        thread_log.setLevel(logging.DEBUG)
+    else:
+        thread_log.setLevel(logging.INFO)
     pass
 
 
@@ -14,11 +24,11 @@ def cli():
               show_default=True)
 @click.option("-t", "--connection-type", default="local", help="Connection type",
               show_default=True)
-def update(db, collection, connection_type):
+def update(db, connection_type):
     Downloader.prepare_files()
-    update_object()
+    # update_object()
 
-@click.command()
+@click.command(help="Find the connections between two stations")
 @click.option("-f","--from", "from_", help="Start point of the route",
               required=True)
 @click.option("-t","--to", "to_", help="End point of the route", required=True)
@@ -28,6 +38,3 @@ def find(from_, to_):
 
 cli.add_command(update)
 cli.add_command(find)
-
-if __name__ == '__main__':
-    cli()

@@ -1,6 +1,9 @@
-from common import data_base_path
 from xml.etree import ElementTree as ET
-from models.station import Station
+
+from common import data_base_path
+
+from upaproject.models.station import Station
+
 
 class Parser:
     

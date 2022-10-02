@@ -2,3 +2,5 @@
 *.xml
 *.xls*
 *.pdf
+*data/
+*db*/

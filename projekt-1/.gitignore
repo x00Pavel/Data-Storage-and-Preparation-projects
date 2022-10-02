@@ -1,7 +1,6 @@
-*data/
-*db*/
 *.zip
 *.xml
-*__*
+*cache*
 .*
 *.pdf
+*.egg-info

@@ -1,19 +1,13 @@
-import requests
-from urllib.request import urlopen
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-import bs4
-from dateutil.parser import parse
 from subprocess import check_output
-import logging
-import sys
-from common import data_base_path
+from urllib.request import urlopen
 
-thread_log = logging.getLogger("thread_logger")
-thread_log.setLevel("DEBUG")
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
-thread_log.addHandler(handler)
+import bs4
+import requests
+from dateutil.parser import parse
+
+from upaproject import data_base_path, thread_log
 
 base_source_url = "https://portal.cisjr.cz"
 base_source_path = f"{base_source_url}/pub/draha/celostatni/szdc/2022/"
@@ -54,15 +48,17 @@ class Downloader:
                 continue
             dst = dir.joinpath(l.text)
             dst_xml = dir.joinpath(dst.stem)
-            if (dst.exists() and dst.stat().st_size > 0) or \
-                (dst_xml.exists() and dst_xml.stat().st_size > 0):
-                thread_log.warning(f"Skipping {l.text}: already exists")
+            if dst.exists() and dst.stat().st_size > 0:
+                thread_log.warning(f"Skipping {str(dst)}: ZIP already exists")
+                continue
+            elif dst_xml.exists() and dst_xml.stat().st_size > 0:
+                thread_log.warning(f"Skipping {l.text}: XML already exists")
                 continue
             
             with urlopen(base_source_url + l["href"]) as f:
                 zip_data = f.read()
             assert zip_data, "No data downloaded"
-            with dir.joinpath(l.text).open("wb") as zip_f:
+            with dst.open("wb") as zip_f:
                 zip_f.write(zip_data)
                 thread_log.warning(f"Downloaded {l.text}")
         thread_log.info(f"Downloaded all files into {dir}")
@@ -83,7 +79,7 @@ class Downloader:
         data = bs4.BeautifulSoup(r.text, "html.parser")
 
         # Download all files in a directory
-        Downloader.download_files_in_dir(data, sub_dir)
+        cls.download_files_in_dir(data, sub_dir)
         thread_log.info(f"Finished processing {url[0]}")
 
     @classmethod
@@ -109,7 +105,7 @@ class Downloader:
         # Recursively download all from each directory and gunzip it
         with ThreadPoolExecutor(max_workers=11) as executor:
             thread_log.info("Starting threads")
-            executor.map(Downloader.worker, links)
+            executor.map(cls.worker, links)
         for d in data_base_path.iterdir():
             Downloader.unzip_files(d)
     

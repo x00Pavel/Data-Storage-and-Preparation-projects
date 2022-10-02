@@ -1,12 +1,11 @@
-from mongoengine import (StringField, IntField, DateTimeField,
-                         ListField, DynamicDocument)
-from station import Station
+from mongoengine import (DynamicDocument, IntField, ListField)
+from upaproject.models.station import Station
+
 
 class Connection(DynamicDocument):
     meta = {'collection': 'connections'}
 
-    # departure = DateTimeField(required=True)
-    # arrival = DateTimeField(required=True)
+   
     from_ = IntField(required=True)
     to = IntField(required=True)
     stops = ListField(Station)

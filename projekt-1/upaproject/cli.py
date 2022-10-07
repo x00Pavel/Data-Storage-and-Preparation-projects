@@ -22,8 +22,8 @@ def cli(debug, connection, db):
         handler.setLevel(logging.DEBUG)
         thread_log.setLevel(logging.DEBUG)
     else:
-        handler.setLevel(logging.DEBUG)
-        thread_log.setLevel(logging.INFO)
+        handler.setLevel(logging.WARNING)
+        thread_log.setLevel(logging.WARNING)
     url = environ["MONGO_LOCAL_URI"] if connection == "local" else environ["MONGO_URI"]
     result = connect(db, host=url)
     thread_log.info(f"Connected to {url}")
@@ -35,7 +35,7 @@ def cli(debug, connection, db):
               show_default=True)
 def update(db):
     Downloader.prepare_files()
-    # update_documents()
+    update_documents()
 
 @click.command(help="Find the connections between two stations")
 @click.option("-f","--from", "from_", help="Start point of the route",

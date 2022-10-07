@@ -4,7 +4,8 @@ version: '3.1'
 services:
 
   mongo:
-    image: mongo
+    image: docker.io/library/mongo:latest
+    container_name: mongo
     restart: always
     ports:
       - 27017:27017
@@ -15,7 +16,8 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: "${PASSWORD}"
 
   mongo-express:
-    image: mongo-express
+    image: docker.io/library/mongo-express:latest
+    container_name: mongo-express
     restart: always
     ports:
       - 8081:8081

@@ -5,7 +5,6 @@ from urllib.request import urlopen
 
 import bs4
 import requests
-from dateutil.parser import parse
 
 from upaproject import data_base_path, thread_log
 
@@ -42,19 +41,18 @@ class Downloader:
         :param dir: directory where to download files
         :type dir: pathlib.Path
         """
-
         thread_log.info(f"Downloading files to {dir}")
         for l in data.find_all("a"):
             if not l.text.endswith(".zip"):
-                thread_log.warning(f"Skipping {l.text}: not a ZIP extension")
+                thread_log.debug(f"Skipping {l.text}: not a ZIP extension")
                 continue
             dst = dir.joinpath(l.text)
             dst_xml = dir.joinpath(dst.stem)
             if dst.exists() and dst.stat().st_size > 0:
-                thread_log.warning(f"Skipping {str(dst)}: ZIP already exists")
+                thread_log.debug(f"Skipping {str(dst)}: ZIP already exists")
                 continue
             elif dst_xml.exists() and dst_xml.stat().st_size > 0:
-                thread_log.warning(f"Skipping {l.text}: XML already exists")
+                thread_log.debug(f"Skipping {l.text}: XML already exists")
                 continue
             
             with urlopen(base_source_url + l["href"]) as f:
@@ -62,8 +60,8 @@ class Downloader:
             assert zip_data, "No data downloaded"
             with dst.open("wb") as zip_f:
                 zip_f.write(zip_data)
-                thread_log.warning(f"Downloaded {dir}/{l.text}")
-        thread_log.info(f"Downloaded all files into {dir}")
+                thread_log.debug(f"Downloaded {dir}/{l.text}")
+        thread_log.warning(f"Downloaded all files into {dir}")
 
     @classmethod
     def worker(cls, url):
@@ -82,7 +80,8 @@ class Downloader:
 
         # Download all files in a directory
         cls.download_files_in_dir(data, sub_dir)
-        thread_log.info(f"Finished processing {url[0]}")
+        Downloader.unzip_files(sub_dir)
+        thread_log.debug(f"Finished processing {url[0]}")
 
     @classmethod
     def prepare_files(cls):
@@ -99,15 +98,13 @@ class Downloader:
         links = []
         for d in data_dir_content.find_all("a"):
             try:
-                parse(d.text)
+                thread_log.debug(d.text)
                 links.append((f'{base_source_url}/{d["href"]}', d.text))
             except:
-                print(f"Not a directory {d.text}")
+                thread_log.warning(f"Not a directory {d.text}")
 
         # Recursively download all from each directory and gunzip it
         with ThreadPoolExecutor(max_workers=11) as executor:
             thread_log.info("Starting threads")
             executor.map(cls.worker, links)
-        for d in data_base_path.iterdir():
-            Downloader.unzip_files(d)
     

@@ -8,21 +8,25 @@ class Station(DynamicDocument):
     meta = {'collection': 'stations'}
     
     station_id = ObjectIdField(required=True, primary_key=True)
+    station_id_text = StringField(required=True)
     station_name = StringField(required=True)
     country = StringField(required=True, max_length=3, min_length=2)
-    connections = ListField(ObjectIdField, required=True)
+    connections = ListField(ObjectIdField(), required=True, dbref=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
     def from_xml(self, xml_data: ET):
-        location = xml_data.find("Location")
-        id_text = location.find("LocationPrimaryCode").text
+        self.station_id_text = xml_data.find("LocationPrimaryCode").text
+        self.station_name = xml_data.find("PrimaryLocationName").text
+        self.country = xml_data.find("CountryCodeISO").text
+
+    @staticmethod
+    def gen_id_from_xml(xml_data: ET):
+        id_text = xml_data.find("LocationPrimaryCode").text
         while len(id_text) < 12:
             id_text += '0'
-        self.station_id = ObjectId(bytes(id_text, 'utf-8'))
-        self.station_name = location.find("PrimaryLocationName").text
-        self.country = location.find("CountryCodeISO").text
+        return ObjectId(bytes(id_text, 'utf-8'))
 
     def __str__(self):
         return f"Station {self.station_name} ({self.station_id}) in {self.country}"

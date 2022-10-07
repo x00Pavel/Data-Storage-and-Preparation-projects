@@ -24,6 +24,8 @@ class Downloader:
         :type dir: pathlib.Path
         """
         for f in dir.iterdir():
+            if f.suffix != ".zip":
+                continue
             cmd = ["gunzip", "-S", ".zip"]
             check_output(cmd + [str(f)])
         thread_log.info(f"Unzipped all files in {dir}")
@@ -60,7 +62,7 @@ class Downloader:
             assert zip_data, "No data downloaded"
             with dst.open("wb") as zip_f:
                 zip_f.write(zip_data)
-                thread_log.warning(f"Downloaded {l.text}")
+                thread_log.warning(f"Downloaded {dir}/{l.text}")
         thread_log.info(f"Downloaded all files into {dir}")
 
     @classmethod

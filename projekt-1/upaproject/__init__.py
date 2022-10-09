@@ -4,13 +4,13 @@ from pathlib import Path
 from enum import Enum
 import dotenv
 
-current_location = Path(__file__).parent.absolute()
-data_base_path = current_location.parent.joinpath("data")
+module_root = Path(__file__).parent.absolute().parent
+data_base_path = module_root.joinpath("data")
 data_base_path.mkdir(exist_ok=True)
 
-log_path = current_location.parent.joinpath("logs")
+log_path = module_root.joinpath("logs")
 
-dotenv.load_dotenv(current_location.parent.joinpath(".env"))
+dotenv.load_dotenv(module_root.joinpath(".env"))
 format = "%(levelname)s: %(message)s"
 
 thread_log = logging.getLogger("thread_logger")
@@ -22,7 +22,7 @@ thread_log.addHandler(handler)
 progress_log = logging.getLogger("progress_logger")
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(logging.Formatter(format))
-handler.terminator = "\r"
-handler.setLevel(logging.WARNING)
+handler.terminator = ""
+handler.setLevel(logging.DEBUG)
 progress_log.addHandler(handler)
-progress_log.setLevel(logging.WARNING)
+progress_log.setLevel(logging.DEBUG)

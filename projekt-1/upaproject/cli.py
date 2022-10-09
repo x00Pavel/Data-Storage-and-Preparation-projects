@@ -1,14 +1,15 @@
 #!/bin/python3
 import logging
+from os import environ
 
 import click
+from mongoengine import connect
 
-from upaproject import thread_log, handler
+from upaproject import handler, thread_log
 from upaproject.downloader import Downloader
+from upaproject.finder import find_connection
 from upaproject.updater import update_documents
 
-from mongoengine import connect
-from os import environ
 
 @click.group()
 @click.option("--debug/--no-debug", default=False)
@@ -37,13 +38,18 @@ def update(db):
     Downloader.prepare_files()
     update_documents()
 
+
 @click.command(help="Find the connections between two stations")
 @click.option("-f","--from", "from_", help="Start point of the route",
               required=True)
 @click.option("-t","--to", "to_", help="End point of the route", required=True)
-def find(from_, to_):
-    print("executing find")
-
+@click.option("-d","--date", help="Date of the route", required=False)
+def find(from_, to_, date):
+    try:
+        connection = find_connection(from_, to_, date)
+    except ValueError as e:
+        thread_log.error(e)
+        exit(1)
 
 cli.add_command(update)
 cli.add_command(find)

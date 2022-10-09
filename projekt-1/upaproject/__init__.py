@@ -14,7 +14,7 @@ dotenv.load_dotenv(module_root.joinpath(".env"))
 format = "%(levelname)s: %(message)s"
 
 thread_log = logging.getLogger("thread_logger")
-handler = logging.FileHandler(log_path.joinpath("thread.log"), mode="w")
+handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(logging.Formatter(format))
 handler.terminator = "\n"
 thread_log.addHandler(handler)

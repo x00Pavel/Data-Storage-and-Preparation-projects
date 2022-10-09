@@ -18,7 +18,7 @@ def parse_stations(conn, station_iter):
         station = Station().from_xml(entry)
         location_xml = entry.find("Location")
         id_ = Location.gen_id_from_xml(location_xml)
-        location = Location.objects(station_id=id_)
+        location = Location.objects(location_id=id_)
         if location:
             location = location.first()
         else:

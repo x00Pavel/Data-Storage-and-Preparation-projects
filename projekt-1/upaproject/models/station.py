@@ -1,35 +1,31 @@
+from mongoengine import EmbeddedDocument, DateTimeField, IntField, LazyReferenceField, StringField
+from upaproject.models.location import Location
+from dateutil.parser import parse
 from xml.etree import ElementTree as ET
 
-from mongoengine import (DynamicDocument, LazyReferenceField, ListField,
-                         ObjectIdField, StringField)
-from bson.objectid import ObjectId
+class Station(EmbeddedDocument):
+    time_arrival = DateTimeField()
+    time_departure = DateTimeField()
+    offset_arrival = IntField()
+    offset_departure = IntField()
+    train_activity = StringField()
+    train_type = IntField(required=True)
+    operational_train_num = IntField(required=True)
+    location = LazyReferenceField(Location, required=True, dbref=True, passthrough=True)
 
-class Station(DynamicDocument):
-    meta = {'collection': 'stations'}
-    
-    station_id = ObjectIdField(required=True, primary_key=True)
-    station_id_text = StringField(required=True)
-    station_name = StringField(required=True)
-    country = StringField(required=True, max_length=3, min_length=2)
-    connections = ListField(ObjectIdField(), required=True, dbref=False)
+    def from_xml(self, xml_data):
+        timing = xml_data.find("TimingAtLocation").findall("Timing")
+        for i in timing:
+            if i.attrib['TimingQualifierCode'] == "ALA":
+                self.time_arrival = parse(i.find("Time").text)
+                self.offset_arrival = int(i.find("Offset").text)
+            elif i.attrib['TimingQualifierCode'] == "ALD":
+                self.time_departure = parse(i.find("Time").text)
+                self.offset_departure = int(i.find("Offset").text)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
-    def from_xml(self, xml_data: ET):
-        self.station_id_text = xml_data.find("LocationPrimaryCode").text
-        self.station_name = xml_data.find("PrimaryLocationName").text
-        self.country = xml_data.find("CountryCodeISO").text
-
-    @staticmethod
-    def gen_id_from_xml(xml_data: ET):
-        id_text = xml_data.find("LocationPrimaryCode").text
-        while len(id_text) < 12:
-            id_text += '0'
-        return ObjectId(bytes(id_text, 'utf-8'))
-
-    def __str__(self):
-        return f"Station {self.station_name} ({self.station_id}) in {self.country}"
-
-    def __repr__(self):
-        return self.__str__()
+        self.train_type = int(xml_data.find("TrainType").text)
+        train_activity = xml_data.find("TrainActivity")
+        if train_activity:
+            self.train_activity = train_activity.find("TrainActivityType").text
+        self.operational_train_num = int(xml_data.find("OperationalTrainNumber").text)
+        return self

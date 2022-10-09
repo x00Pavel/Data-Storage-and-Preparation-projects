@@ -1,24 +1,27 @@
 from bson.objectid import ObjectId
-from mongoengine import (DynamicDocument, EmbeddedDocumentField,
+from mongoengine import (DateTimeField, DynamicDocument, EmbeddedDocumentField,
                          LazyReferenceField, ListField, ObjectIdField,
                          ReferenceField, StringField)
-from upaproject.models.train import Train
 from upaproject import thread_log
+from upaproject.models.calendar import Calendar
+from upaproject.models.location import Location
+from upaproject.models.train import Train
+from upaproject.models.station import Station
 
 class Connection(DynamicDocument):
     meta = {'collection': 'connections'}
 
     connection_id = ObjectIdField(required=True, primary_key=True)
     connection_id_text = StringField(required=True)
-    start = LazyReferenceField("Station", required=True, dbref=True)
-    end = LazyReferenceField("Station", required=True, dbref=True)
-    train = EmbeddedDocumentField("Train")
-    stations = ListField(ReferenceField("Station", dbref=True), required=True)
-    # related = ReferenceField(DynamicField, required=False, dbref=True)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
+    start = LazyReferenceField(Location, required=True, dbref=True)
+    end = LazyReferenceField(Location, required=True, dbref=True)
+    train = EmbeddedDocumentField(Train)
+    stations = ListField(EmbeddedDocumentField(Station), required=True)
+    related = LazyReferenceField("Connection", required=False, dbref=True)
+    header = StringField()
+    spec_params = ListField(StringField())
+    creation = DateTimeField(required=True)
+    calendar = EmbeddedDocumentField(Calendar)
 
     def from_xml(self, xml_data):
         id_ = xml_data.find("Core").text.replace('-', '0')
@@ -26,6 +29,12 @@ class Connection(DynamicDocument):
         self.connection_id = ObjectId(bytes(id_, "utf-8"))
         self.connection_id_text = id_
         return self
+    
+    @staticmethod
+    def gen_id_from_xml(xml_data):
+        id_ = xml_data.find("Core").text.replace('-', '0')
+        assert len(id_) == 12, "Len of ID is not equal to 12"
+        return id_, ObjectId(bytes(id_, "utf-8"))
 
     def __str__(self):
         return f"Connection from {self.start} to {self.end} with {self.stations} stops"

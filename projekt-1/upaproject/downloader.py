@@ -74,14 +74,24 @@ class Downloader:
         sub_dir = Path(f"{data_base_path}/{url[1]}")
         sub_dir.mkdir(exist_ok=True)
 
-        r = requests.get(url[0])
-        assert r.ok, f"GET {url[0]} failed with {r.status_code}"
-        data = bs4.BeautifulSoup(r.text, "html.parser")
+        if url[0].endswith(".zip"):
+            dst = sub_dir.joinpath(url[0].split("/")[-1])
+            with urlopen(url[0]) as f:
+                zip_data = f.read()
+            assert zip_data, "No data downloaded"
+            with dst.open("wb") as zip_f:
+                zip_f.write(zip_data)
+                check_output(["unzip", "-f", dst, "-d", sub_dir])
+                thread_log.debug(f"Downloaded {dst}")
+        else:
+            r = requests.get(url[0])
+            assert r.ok, f"GET {url[0]} failed with {r.status_code}"
+            data = bs4.BeautifulSoup(r.text, "html.parser")
 
-        # Download all files in a directory
-        cls.download_files_in_dir(data, sub_dir)
-        Downloader.unzip_files(sub_dir)
-        thread_log.debug(f"Finished processing {url[0]}")
+            # Download all files in a directory
+            cls.download_files_in_dir(data, sub_dir)
+            Downloader.unzip_files(sub_dir)
+            thread_log.debug(f"Finished processing {url[0]}")
 
     @classmethod
     def prepare_files(cls):
@@ -102,7 +112,7 @@ class Downloader:
                 links.append((f'{base_source_url}/{d["href"]}', d.text))
             except:
                 thread_log.warning(f"Not a directory {d.text}")
-
+        links += [(f"{base_source_path}/GVD2022.zip", "GVD2022")]
         # Recursively download all from each directory and gunzip it
         with ThreadPoolExecutor(max_workers=11) as executor:
             thread_log.info("Starting threads")

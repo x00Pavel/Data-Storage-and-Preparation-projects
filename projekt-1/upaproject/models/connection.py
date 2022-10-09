@@ -24,10 +24,10 @@ class Connection(DynamicDocument):
     calendar = EmbeddedDocumentField(Calendar)
 
     def from_xml(self, xml_data):
-        id_ = xml_data.find("Core").text.replace('-', '0')
+        self.connection_id_text = xml_data.find("Core")
+        id_ = self.connection_id_text.replace("-", "0")
         assert len(id_) == 12, "Len of ID is not equal to 12"
         self.connection_id = ObjectId(bytes(id_, "utf-8"))
-        self.connection_id_text = id_
         return self
     
     @staticmethod

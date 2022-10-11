@@ -1,43 +1,72 @@
 from bson.objectid import ObjectId
 from upaproject.models import (station, connection, location)
 from upaproject import thread_log
+from dateutil.parser import parse
 
 def find_connection(from_, to_, date):
-    # thread_log.debug(f"Looking for connection from {from_} to {to_} on {date}")
+    date_time = parse(date)
+    thread_log.debug(f"Looking for connection from {from_} to {to_} on {date_time}")
     from_id = location.Location.get_id_from_text(from_)
     to_id = location.Location.get_id_from_text(to_)
-    # location_from = location.Location.objects(pk=from_id).first()
-    # print(type(location_from))
-    # location_to = location.Location.objects(pk=to_id).first()
-    # if not location_from:
-    #     raise ValueError(f"Location {from_} not found")
-    # elif not location_to:
-    #     raise ValueError(f"Location {to_} not found")
-    # elif location_from.location_id_text != from_:
-    #     msg = f"Location {from_} not found"
-    #     thread_log.critical(msg + f"\n Text representation of id is not identical: {location_from.location_id_text} and {from_}")
-    #     raise ValueError(msg)
-    # elif location_to.location_id_text != to_:
-    #     msg = f"Location {to_} not found"
-    #     thread_log.critical(msg + f"\n\tText representation of id is not identical: {location_to.location_id_text} and {to_}")
-    #     raise ValueError(msg)
-    # common_connections = list(set(location_from.connections).intersection(location_to.connections))
-    
-    # if not common_connections:
-    #     raise ValueError(f"No connection found from {from_} to {to_}")
-    # thread_log.info(f"Found {len(common_connections)} common connections")
-    pipline = [
+    pipeline = [
         {"$match":
                 {"_id": {"$in": [to_id, from_id]},
                  "location_id_text": {"$in": [to_, from_]}
                 }
         },
-        {"$group":{
-            "_id": "null",
-            "common_connections": {"$setIntersection": ["$connections", "$connections"]}
-        }}
+        # {"$group":{
+        #         "_id": 0,
+        #         "common_connections":{"$push": "connections"}
+        #     }
+        # },
+        # {"$group":{
+        #         "_id": 0,
+        #         # "intersection": {"$setIntersection": ["$connections", "$connections"]}
+        #         "common_connections":{"$push": "$connections"}
+        #     }
+        # },
+        # # {"$unwind": "$common_connections"},
+        {"$project": {
+                "_id": 0,
+                "connections": "$connections"
+            }
+            
+        },
+        {
+            "$group": {
+                "_id": 0,                
+                "conns": {"$push": "$connections"}
+            }
+        }
+        
 
     ]
-    result = location.Location.objects().aggregate(pipline)
-    for r in result:
-        print(r)
+    result = [i for i in location.Location.objects().aggregate(pipeline)]
+    a, b = result[0]["conns"]
+    pipeline = [
+        {
+            "$match": {
+                "$and": [
+                    {"_id": {"$in": list(set(a).intersection(b))}},
+                    {"calendar": {
+                        "start_date": {"$lte": date_time},
+                        "end_time": {"$gt": date_time}
+                        }
+                    }
+                ],
+
+            }
+        }
+    ]
+    # result = [i for i in connection.Connection.objects().aggregate(pipeline)]
+    # print(len(result))
+    result = connection.Connection.objects().aggregate(pipeline)
+    n = 0
+    for i in result:
+        if i["calendar"]["start_date"] <= date_time <= i["calendar"]["end_date"]:
+            # print(i)
+            print(i["calendar"]["start_date"], i["calendar"]["end_date"])
+            n += 1
+    print(n)
+
+

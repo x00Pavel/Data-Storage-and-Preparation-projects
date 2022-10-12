@@ -32,7 +32,7 @@ class Location(DynamicDocument):
 
 
     def __str__(self):
-        return f"Station {self.location_name} ({self.location_id_text}) in {self.country} (OID: {self.location_id})"
+        return f"{self.location_name} ({self.location_id_text}, OID: {self.location_id})"
 
     def __repr__(self):
         return self.__str__()

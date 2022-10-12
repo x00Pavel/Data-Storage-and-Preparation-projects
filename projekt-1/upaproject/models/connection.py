@@ -13,11 +13,11 @@ class Connection(DynamicDocument):
 
     connection_id = ObjectIdField(required=True, primary_key=True)
     connection_id_text = StringField(required=True)
-    start = LazyReferenceField(Location, required=True, dbref=True)
-    end = LazyReferenceField(Location, required=True, dbref=True)
+    start = LazyReferenceField(Location, required=True, dbref=True, passthrough=True)
+    end = LazyReferenceField(Location, required=True, dbref=True, passthrough=True)
     train = EmbeddedDocumentField(Train)
     stations = ListField(EmbeddedDocumentField(Station), required=True)
-    related = LazyReferenceField("Connection", required=False, dbref=True)
+    related = LazyReferenceField("Connection", required=False, dbref=True, passthrough=True)
     header = StringField()
     spec_params = ListField(StringField())
     creation = DateTimeField(required=True)
@@ -37,7 +37,12 @@ class Connection(DynamicDocument):
         return id_, ObjectId(bytes(id_, "utf-8"))
 
     def __str__(self):
-        return f"Connection from {self.start} to {self.end} with {self.stations} stops"
+        header = f"Connection from {self.start.location_name} to {self.end.location_name}"
+        body = ""
+        for s in self.stations:
+            if s.train_activity == "0001":
+                body += f"\n\t{s}"
+        return f"{header}{body}"
 
     def __repr__(self):
         return self.__str__()

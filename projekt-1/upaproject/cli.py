@@ -5,7 +5,7 @@ from os import environ
 import click
 from mongoengine import connect
 
-from upaproject import handler, thread_log
+from upaproject import handler, thread_log, terminal_size
 from upaproject.downloader import Downloader
 from upaproject.finder import find_connection
 from upaproject.updater import update_documents
@@ -46,7 +46,11 @@ def update(db):
 @click.option("-d","--date", help="Date of the route", required=False)
 def find(from_, to_, date):
     try:
-        connection = find_connection(from_, to_, date)
+        connections = find_connection(from_, to_, date)
+        print(f"Available connections ({len(connections)}):")
+        for conn in connections:
+            print("="*terminal_size)
+            print(conn)
     except ValueError as e:
         thread_log.error(e)
         exit(1)

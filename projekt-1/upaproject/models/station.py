@@ -29,3 +29,9 @@ class Station(EmbeddedDocument):
             self.train_activity = train_activity.find("TrainActivityType").text
         self.operational_train_num = int(xml_data.find("OperationalTrainNumber").text)
         return self
+    
+    def __str__(self):
+        return f"|-> {self.location.location_name} {self.time_arrival} - {self.time_departure}"
+
+    def __repr__(self):
+        return self.__str__()

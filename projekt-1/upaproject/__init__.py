@@ -2,8 +2,11 @@ import logging
 import sys
 from pathlib import Path
 import dotenv
-from datetime import datetime, timezone
-from bson.objectid import ObjectId
+from os import get_terminal_size
+
+
+terminal_size = get_terminal_size().columns
+
 
 module_root = Path(__file__).parent.absolute().parent
 data_base_path = module_root.joinpath("data")

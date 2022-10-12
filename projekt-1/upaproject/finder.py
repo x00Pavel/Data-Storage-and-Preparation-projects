@@ -1,72 +1,29 @@
-from bson.objectid import ObjectId
 from upaproject.models import (station, connection, location)
-from upaproject import thread_log
+from upaproject import thread_log, get_intersac_pipeline
 from dateutil.parser import parse
+from os import get_terminal_size
+from bitmap import BitMap
+
+size = get_terminal_size().columns
+
+def check_bitmap_for_date(date, calendar):
+    bitmap = BitMap.fromstring(calendar["bitmap"])
+    thread_log.debug(f"Checking bitmap for {date}")
+    thread_log.debug(f"Bitmap: {bitmap}")
+    thread_log.debug(f"Validity period: {calendar['start_date']} - {calendar['end_date']}")
+    days_count = (date - calendar["start_date"]).days
+    thread_log.debug(f"Number of days {days_count}")
+    return bitmap.test(days_count)
 
 def find_connection(from_, to_, date):
     date_time = parse(date)
     thread_log.debug(f"Looking for connection from {from_} to {to_} on {date_time}")
+    
     from_id = location.Location.get_id_from_text(from_)
     to_id = location.Location.get_id_from_text(to_)
-    pipeline = [
-        {"$match":
-                {"_id": {"$in": [to_id, from_id]},
-                 "location_id_text": {"$in": [to_, from_]}
-                }
-        },
-        # {"$group":{
-        #         "_id": 0,
-        #         "common_connections":{"$push": "connections"}
-        #     }
-        # },
-        # {"$group":{
-        #         "_id": 0,
-        #         # "intersection": {"$setIntersection": ["$connections", "$connections"]}
-        #         "common_connections":{"$push": "$connections"}
-        #     }
-        # },
-        # # {"$unwind": "$common_connections"},
-        {"$project": {
-                "_id": 0,
-                "connections": "$connections"
-            }
-            
-        },
-        {
-            "$group": {
-                "_id": 0,                
-                "conns": {"$push": "$connections"}
-            }
-        }
-        
 
-    ]
-    result = [i for i in location.Location.objects().aggregate(pipeline)]
-    a, b = result[0]["conns"]
-    pipeline = [
-        {
-            "$match": {
-                "$and": [
-                    {"_id": {"$in": list(set(a).intersection(b))}},
-                    {"calendar": {
-                        "start_date": {"$lte": date_time},
-                        "end_time": {"$gt": date_time}
-                        }
-                    }
-                ],
-
-            }
-        }
-    ]
-    # result = [i for i in connection.Connection.objects().aggregate(pipeline)]
-    # print(len(result))
-    result = connection.Connection.objects().aggregate(pipeline)
-    n = 0
-    for i in result:
-        if i["calendar"]["start_date"] <= date_time <= i["calendar"]["end_date"]:
-            # print(i)
-            print(i["calendar"]["start_date"], i["calendar"]["end_date"])
-            n += 1
-    print(n)
-
-
+    pipeline = get_intersac_pipeline(from_id, from_, to_id, to_, date_time)
+    result = location.Location.objects().aggregate(pipeline).next()["list"]
+    thread_log.debug(f"Found {len(result)} connections")
+    final_conns = [conn for conn in result if check_bitmap_for_date(date_time, conn["calendar"])]
+    print(len(final_conns))    

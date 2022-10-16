@@ -1,12 +1,12 @@
 from bson.objectid import ObjectId
 from mongoengine import (DateTimeField, DynamicDocument, EmbeddedDocumentField,
                          LazyReferenceField, ListField, ObjectIdField,
-                         ReferenceField, StringField)
-from upaproject import thread_log
+                         ReferenceField, StringField, BooleanField)
 from upaproject.models.calendar import Calendar
 from upaproject.models.location import Location
 from upaproject.models.train import Train
 from upaproject.models.station import Station
+
 
 class Connection(DynamicDocument):
     meta = {'collection': 'connections'}
@@ -17,7 +17,7 @@ class Connection(DynamicDocument):
     end = LazyReferenceField(Location, required=True, dbref=True, passthrough=True)
     train = EmbeddedDocumentField(Train)
     stations = ListField(EmbeddedDocumentField(Station), required=True)
-    related = LazyReferenceField("Connection", required=False, dbref=True, passthrough=True)
+    related = ObjectIdField(required=False)
     header = StringField()
     spec_params = ListField(StringField())
     creation = DateTimeField(required=True)

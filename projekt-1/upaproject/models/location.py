@@ -5,8 +5,7 @@ from mongoengine import (DynamicDocument, LazyReferenceField, ListField,
 from bson.objectid import ObjectId
 
 class Location(DynamicDocument):
-    # meta = {'collection': 'locations'}
-    meta = {'collection': 'stations'}
+    meta = {'collection': 'locations'}
     
     location_id = ObjectIdField(required=True, primary_key=True)
     location_id_text = StringField(required=True)

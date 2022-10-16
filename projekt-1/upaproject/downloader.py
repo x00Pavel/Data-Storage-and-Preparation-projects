@@ -6,7 +6,7 @@ from urllib.request import urlopen
 import bs4
 import requests
 
-from upaproject import data_base_path, thread_log
+from upaproject import data_base_path, default_logger as logger
 
 base_source_url = "https://portal.cisjr.cz"
 base_source_path = f"{base_source_url}/pub/draha/celostatni/szdc/2022/"
@@ -27,7 +27,7 @@ class Downloader:
                 continue
             cmd = ["gunzip", "-S", ".zip"]
             check_output(cmd + [str(f)])
-        thread_log.info(f"Unzipped all files in {dir}")
+        logger.info(f"Unzipped all files in {dir}")
 
     @classmethod
     def download_files_in_dir(cls, data: bs4.BeautifulSoup, dir: Path):
@@ -41,18 +41,18 @@ class Downloader:
         :param dir: directory where to download files
         :type dir: pathlib.Path
         """
-        thread_log.info(f"Downloading files to {dir}")
+        logger.info(f"Downloading files to {dir}")
         for l in data.find_all("a"):
             if not l.text.endswith(".zip"):
-                thread_log.debug(f"Skipping {l.text}: not a ZIP extension")
+                logger.debug(f"Skipping {l.text}: not a ZIP extension")
                 continue
             dst = dir.joinpath(l.text)
             dst_xml = dir.joinpath(dst.stem)
             if dst.exists() and dst.stat().st_size > 0:
-                thread_log.debug(f"Skipping {str(dst)}: ZIP already exists")
+                logger.debug(f"Skipping {str(dst)}: ZIP already exists")
                 continue
             elif dst_xml.exists() and dst_xml.stat().st_size > 0:
-                thread_log.debug(f"Skipping {l.text}: XML already exists")
+                logger.debug(f"Skipping {l.text}: XML already exists")
                 continue
             
             with urlopen(base_source_url + l["href"]) as f:
@@ -60,8 +60,8 @@ class Downloader:
             assert zip_data, "No data downloaded"
             with dst.open("wb") as zip_f:
                 zip_f.write(zip_data)
-                thread_log.debug(f"Downloaded {dir}/{l.text}")
-        thread_log.warning(f"Downloaded all files into {dir}")
+                logger.debug(f"Downloaded {dir}/{l.text}")
+        logger.warning(f"Downloaded all files into {dir}")
 
     @classmethod
     def worker(cls, url):
@@ -82,7 +82,7 @@ class Downloader:
             with dst.open("wb") as zip_f:
                 zip_f.write(zip_data)
                 check_output(["unzip", "-f", dst, "-d", sub_dir])
-                thread_log.debug(f"Downloaded {dst}")
+                logger.debug(f"Downloaded {dst}")
         else:
             r = requests.get(url[0])
             assert r.ok, f"GET {url[0]} failed with {r.status_code}"
@@ -91,7 +91,7 @@ class Downloader:
             # Download all files in a directory
             cls.download_files_in_dir(data, sub_dir)
             Downloader.unzip_files(sub_dir)
-            thread_log.debug(f"Finished processing {url[0]}")
+            logger.debug(f"Finished processing {url[0]}")
 
     @classmethod
     def prepare_files(cls):
@@ -108,13 +108,13 @@ class Downloader:
         links = []
         for d in data_dir_content.find_all("a"):
             try:
-                thread_log.debug(d.text)
+                logger.debug(d.text)
                 links.append((f'{base_source_url}/{d["href"]}', d.text))
             except:
-                thread_log.warning(f"Not a directory {d.text}")
+                logger.warning(f"Not a directory {d.text}")
         links += [(f"{base_source_path}/GVD2022.zip", "GVD2022")]
         # Recursively download all from each directory and gunzip it
         with ThreadPoolExecutor(max_workers=11) as executor:
-            thread_log.info("Starting threads")
+            logger.info("Starting threads")
             executor.map(cls.worker, links)
     

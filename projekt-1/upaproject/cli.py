@@ -5,7 +5,7 @@ from os import environ
 import click
 from mongoengine import connect
 
-from upaproject import handler, thread_log, terminal_size
+from upaproject import default_logger as logger, terminal_size
 from upaproject.downloader import Downloader
 from upaproject.finder import find_connection
 from upaproject.updater import update_documents
@@ -17,24 +17,22 @@ from upaproject.updater import update_documents
               type=click.Choice(['local', 'remote']),
               default="local"
             )
-@click.option("-d", "--db", default="upa")
+@click.option("-d", "--db", default="upa-new")
 def cli(debug, connection, db):
     if debug:
-        handler.setLevel(logging.DEBUG)
-        thread_log.setLevel(logging.DEBUG)
+        logger.handlers[0].setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
     else:
-        handler.setLevel(logging.WARNING)
-        thread_log.setLevel(logging.WARNING)
+        logger.handlers[0].setLevel(logging.WARNING)
+        logger.setLevel(logging.WARNING)
     url = environ["MONGO_LOCAL_URI"] if connection == "local" else environ["MONGO_URI"]
     result = connect(db, host=url)
-    thread_log.info(f"Connected to {url}")
+    logger.info(f"Connected to {url}")
     
 
 
 @click.command(help="Update database from source web")
-@click.option("-d","--db", default="upa", help="Database name",
-              show_default=True)
-def update(db):
+def update():
     Downloader.prepare_files()
     update_documents()
 
@@ -52,7 +50,7 @@ def find(from_, to_, date):
             print("="*terminal_size)
             print(conn)
     except ValueError as e:
-        thread_log.error(e)
+        logger.error(e)
         exit(1)
 
 cli.add_command(update)

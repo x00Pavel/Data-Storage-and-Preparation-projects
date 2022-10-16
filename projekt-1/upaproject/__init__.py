@@ -4,7 +4,6 @@ from pathlib import Path
 import dotenv
 from os import get_terminal_size
 
-
 terminal_size = get_terminal_size().columns
 
 
@@ -13,23 +12,25 @@ data_base_path = module_root.joinpath("data")
 data_base_path.mkdir(exist_ok=True)
 
 log_path = module_root.joinpath("logs")
-
 dotenv.load_dotenv(module_root.joinpath(".env"))
 format = "%(levelname)s: %(message)s"
 
-thread_log = logging.getLogger("thread_logger")
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(logging.Formatter(format))
-handler.terminator = "\n"
-thread_log.addHandler(handler)
+def get_logger(name = __name__, where=None, type = "stream", level=logging.WARNING):
+    logger = logging.getLogger(name)
+    where = where or sys.stdout
+    if type == "file":
+        handler = logging.FileHandler(where)
+    elif type == "stream":
+        handler = logging.StreamHandler(where)
+    
+    handler.setFormatter(logging.Formatter(format))
+    handler.setLevel(level)
+    logger.addHandler(handler)
+    logger.setLevel(level)
+    return logger
 
-progress_log = logging.getLogger("progress_logger")
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(logging.Formatter(format))
-handler.terminator = ""
-handler.setLevel(logging.DEBUG)
-progress_log.addHandler(handler)
-progress_log.setLevel(logging.DEBUG)
+default_logger = get_logger()
+
 
 def get_intersac_pipeline(id_from, text_id_from, id_to, text_id_to, date_time):
     return [

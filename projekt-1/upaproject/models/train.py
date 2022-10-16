@@ -1,8 +1,7 @@
-from traceback import print_tb
-from bson.objectid import ObjectId
-from mongoengine import (StringField, IntField, EmbeddedDocument)
-from upaproject import thread_log
 from xml.etree import ElementTree as ET
+
+from mongoengine import EmbeddedDocument, IntField, StringField
+
 
 class Train(EmbeddedDocument):
     train_id = StringField(required=True)

@@ -1,0 +1,5 @@
+thins to be done:
+1. check for canceled connections
+    - in pipeline or on application side
+2. check for correct direction of train
+    - now connections is matched even when start location is after end location

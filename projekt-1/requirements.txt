@@ -6,3 +6,4 @@ pymongo
 mongoengine
 click
 python-dotenv
+bitmap

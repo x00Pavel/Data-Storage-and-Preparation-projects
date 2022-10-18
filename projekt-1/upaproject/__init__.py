@@ -34,12 +34,11 @@ def get_logger(name = __name__, where=None, type = "stream", level=logging.WARNI
 default_logger = get_logger()
 
 
-def get_intersac_pipeline(id_from, text_id_from, id_to, text_id_to, date_time):
+def get_intersac_pipeline(id_from, id_to, date_time):
     return [
             {
                 '$match': {
-                    '_id': {'$in': [id_from, id_to]}, 
-                    'location_id_text': {'$in': [text_id_from, text_id_to]}
+                    '_id': {'$in': [id_from, id_to]}
                 }
             }, {
                 '$group': {

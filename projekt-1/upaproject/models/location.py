@@ -17,12 +17,6 @@ class Location(DynamicDocument):
         self.country = xml_data.find("CountryCodeISO").text
 
     @staticmethod
-    def get_id_from_text(id_text: str):
-        while len(id_text) < 12:
-            id_text += '0'
-        return ObjectId(bytes(id_text, "utf-8"))
-
-    @staticmethod
     def gen_id_from_xml(xml_data: ET):
         return xml_data.find("LocationPrimaryCode").text
 

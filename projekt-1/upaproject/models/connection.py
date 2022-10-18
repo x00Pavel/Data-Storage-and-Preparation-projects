@@ -21,7 +21,7 @@ class Connection(DynamicDocument):
     spec_params = ListField(StringField())
     creation = DateTimeField(required=True)
     calendar = EmbeddedDocumentField(Calendar)
-    cancellations = ListField(EmbeddedDocumentField(Cancellation))
+    # cancellations = ListField(ReferenceField(Cancellation, dbref=True, passthrough=True))
 
     
     @staticmethod

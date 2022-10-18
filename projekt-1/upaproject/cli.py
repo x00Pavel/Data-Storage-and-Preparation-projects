@@ -26,8 +26,8 @@ def cli(debug, connection, db):
         logger.handlers[0].setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
     else:
-        logger.handlers[0].setLevel(logging.WARNING)
-        logger.setLevel(logging.WARNING)
+        logger.handlers[0].setLevel(logging.ERROR)
+        logger.setLevel(logging.ERROR)
     url = environ["MONGO_LOCAL_URI"] if connection == "local" else environ["MONGO_URI"]
     try:
         connect(db, host=url)

@@ -4,15 +4,17 @@ from xml.etree import ElementTree as ET
 
 from dateutil.parser import parse
 
-from upaproject import data_base_path, module_root, default_logger as logger
+from upaproject import data_base_path, default_logger as logger
 from upaproject.models.calendar import Calendar
 from upaproject.models.connection import Connection
 from upaproject.models.location import Location
 from upaproject.models.station import Station
 from upaproject.models.train import Train
 from upaproject.models.cancellation import Cancellation
+from progress.bar import Bar
 
 cancellations = dict()
+bar = None
 
 def parse_stations(conn, station_iter):
     logger.info(f"Start processing stations for connection {conn.connection_id}")
@@ -36,8 +38,6 @@ def parse_stations(conn, station_iter):
         location.save()
         conn.stations.append(station)
     
-    # logger.info(f"Finish processing stations (#{len(conn.stations)}) for connection {conn.connection_id_text}")
-
 
 def parse_identifiers(identifiers):
     result = dict()
@@ -78,25 +78,19 @@ def parse_planned(root):
     conn.start = conn.stations[0].location.fetch().to_dbref()
     conn.end = conn.stations[-1].location.fetch().to_dbref()
     conn.calendar = Calendar().from_xml(information.find("PlannedCalendar"))
-    if conn_id in cancellations.keys() and cancellations[conn_id]:
-        conn.cancellations.extend(cancellations[conn_id])
-        cancellations[conn_id] = []
     logger.info(f"Finish processing connection {conn_id}")
     conn.save()
     return conn
 
 
 def parse_canceled(root):
-    logger.warning("Start processing Cancelled connection")
     ids = root.findall("PlannedTransportIdentifiers")
     cancellation = Cancellation()
-    cancellation.connection_id = Connection.gen_id_from_xml(ids[0])[1]
+    cancellation.connection_id = Connection.gen_id_from_xml(ids[0])
+    logger.info(f"Started processing cancellation for connection {cancellation.connection_id}")
     cancellation.train = Train().from_xml(ids[1])
-    cancellation.calendar = Calendar().from_xml(root.find("PlannedCalendar"))
-    if cancellation.connection_id in cancellations.keys():
-        cancellations[cancellation.connection_id].append(cancellation)
-    else:
-        cancellations[cancellation.connection_id] = [cancellation]
+    cancellation.calendar = Calendar().from_xml(root.find("PlannedCalendar"))    
+    cancellation.save()
     logger.warning("Finish processing Cancelled connection")
     
 
@@ -116,16 +110,21 @@ def worker(files_list):
         if f.suffix != ".xml":
             logger.warning(f"Not a XML file: {str(f)}")
             continue
-        parse_xml(f)
-        processed += 1
+        try:
+            parse_xml(f)
+            processed += 1
+            bar.next()
+        except ET.ParseError:
+            logger.error(f"Error parsing file {str(f)}")
     logger.warning(f"Processed {processed} files")
 
 
 def update_documents(files_list):
-    thread_num = 50
-    files_list = files_list or list(data_base_path.iterdir())
-    # lst = list(data_base_path.iterdir())
+    global bar
+    thread_num = 100
     all_files = []
+    files_list = files_list or list(data_base_path.iterdir())
+    
     for d in files_list:
         if d.is_dir():
             all_files.extend([f for f in d.iterdir() if f.suffix == ".xml"])
@@ -136,13 +135,13 @@ def update_documents(files_list):
     logger.warning(f"Found {files_num} files. Per thread: {per_thread}")
     # Create list of chunks that contains files for processing in individual threads
     chunks = [all_files[x:x+per_thread] for x in range(0, files_num, per_thread)]
-    logger.critical(f"Starting {thread_num} threads")
-    for f in all_files[0:100]:
-        worker([f])
-    # with ThreadPoolExecutor(max_workers=thread_num) as executor:
-    #     executor.map(worker, chunks)
-    
-    for k, v in cancellations.items():
+        
+    bar = Bar("Processing", max=files_num)
+    with ThreadPoolExecutor(max_workers=thread_num) as executor:
+        executor.map(worker, chunks)
+    bar.finish()
+    logger.info(f"Now processing {len(cancellations)} canceled connections")
+    for k, v in  cancellations.items():
         conn = Connection.objects(connection_id=k).first()
         if conn:
             conn.cancellations.extend(v)

@@ -1,4 +1,4 @@
-from calendar import calendar
+from cmath import log
 from bitmap import BitMap
 from dateutil.parser import parse
 
@@ -34,6 +34,12 @@ def find_correct_direction(connections, from_id, to_id):
             conn.header = "Reverse direction"
 
 
+def check_train_activity_at_station(connection, station_id):
+    for s in connection.stations:
+        if s.location.pk == station_id and s.train_activity == "0001":
+            return True
+    return False
+
 def find_connection(from_, to_, date):
     date_time = parse(date)
     logger.debug(f"Looking for connection from {from_} to {to_} on {date_time}")
@@ -41,13 +47,21 @@ def find_connection(from_, to_, date):
     pipeline = get_intersac_pipeline(from_, to_, date_time)
     result = location.Location.objects().aggregate(pipeline).next()["list"]
     logger.debug(f"Found {len(result)} connections")
+    final_conns = [conn["_id"] for conn in result if check_bitmap_for_date(date_time, conn["calendar"])]
 
     # check for cancellations 
-    final_conns = [conn["_id"] for conn in result if check_bitmap_for_date(date_time, conn["calendar"])]
     cancels = cancellation.Cancellation.objects(connection_id__in=final_conns, calendar__start_date__lte=date_time, calendar__end_date__gte=date_time)
     cancels = [cancel.connection_id for cancel in cancels if check_bitmap_for_date(date_time, cancel.calendar)]
     final_conns = [conn for conn in final_conns if conn not in cancels]
     conn_objects = connection.Connection.objects(_id__in=final_conns)
 
-    print(len(final_conns))
-    return conn_objects
+    # check for train activity at required station
+    result = []
+    for conn in conn_objects:
+        if check_train_activity_at_station(conn, from_) and check_train_activity_at_station(conn, to_):
+            result.append(conn)
+            logger.debug(f"Connection {conn.connection_id} is OK")
+        else:
+            logger.debug(f"Connection {conn.connection_id} does not have train activity at {from_} or {to_}")
+    # conn_objects = [conn_objects[i] for i in ok_index]
+    return result

@@ -29,7 +29,7 @@ class Connection(DynamicDocument):
         return xml_data.find("Core").text
 
     def __str__(self):
-        header = f"Connection from {self.start.location_name} to {self.end.location_name}"
+        header = f"Connection from {self.start.location_name} to {self.end.location_name} ({self.connection_id})"
         body = ""
         for s in self.stations:
             if s.train_activity == "0001":

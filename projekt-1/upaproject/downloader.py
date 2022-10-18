@@ -82,7 +82,7 @@ class Downloader:
             assert zip_data, "No data downloaded"
             with dst.open("wb") as zip_f:
                 zip_f.write(zip_data)
-            check_output(["unzip", str(dst), "-d", str(sub_dir)], encoding="utf-8")
+            check_output(["unzip", "-o", str(dst), "-d", str(sub_dir)], encoding="utf-8")
             logger.debug(f"Downloaded {dst}")
         else:
             r = requests.get(url[0])
@@ -107,17 +107,19 @@ class Downloader:
         
         # Get all dir links
         links = []
-        # for d in data_dir_content.find_all("a"):
-        #     try:
-        #         logger.debug(d.text)
-        #         links.append((f'{base_source_url}/{d["href"]}', d.text))
-        #     except:
-        #         logger.warning(f"Not a directory {d.text}")
-        links += [(f"{base_source_path}/GVD2022.zip", "gvd")]
+        allowed_links = ('2021-12', '2022-01', '2022-02', '2022-04', '2022-04',
+                         '2022-05', '2022-06', '2022-08', '2022-09', '2022-10',
+                         'GVD2022.zip')
+        for d in data_dir_content.find_all("a"):
+            try:
+                logger.debug(d.text)
+                if d.text not in allowed_links:
+                    continue
+                links.append((f'{base_source_url}/{d["href"]}', d.text))
+            except:
+                logger.warning(f"Not a directory {d.text}")
         # Recursively download all from each directory and gunzip it
-        for l in links:
-            cls.worker(l)
-        # with ThreadPoolExecutor(max_workers=11) as executor:
-        #     logger.info("Starting threads")
-        #     executor.map(cls.worker, links)
+        with ThreadPoolExecutor(max_workers=11) as executor:
+            logger.info("Starting threads")
+            executor.map(cls.worker, links)
     

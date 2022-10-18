@@ -107,13 +107,14 @@ class Downloader:
         
         # Get all dir links
         links = []
-        allowed_links = ('2021-12', '2022-01', '2022-02', '2022-04', '2022-04',
-                         '2022-05', '2022-06', '2022-08', '2022-09', '2022-10',
-                         'GVD2022.zip')
+        allowed_links = ('2021-12', '2022-01', '2022-02', '2022-03', '2022-04',
+                         '2022-05', '2022-06', '2022-07','2022-08', '2022-09',
+                         '2022-10', 'GVD2022.zip')
         for d in data_dir_content.find_all("a"):
             try:
                 logger.debug(d.text)
                 if d.text not in allowed_links:
+                    logger.warning(f"Directory is not allowed {d.text}")
                     continue
                 links.append((f'{base_source_url}/{d["href"]}', d.text))
             except:

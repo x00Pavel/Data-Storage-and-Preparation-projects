@@ -11,32 +11,22 @@ from upaproject.models.cancellation import Cancellation
 class Connection(DynamicDocument):
     meta = {'collection': 'connections'}
 
-    connection_id = ObjectIdField(required=True, primary_key=True)
-    connection_id_text = StringField(required=True)
+    connection_id = StringField(required=True, primary_key=True)
     start = LazyReferenceField(Location, required=True, dbref=True, passthrough=True)
     end = LazyReferenceField(Location, required=True, dbref=True, passthrough=True)
     train = EmbeddedDocumentField(Train)
     stations = ListField(EmbeddedDocumentField(Station), required=True)
-    related = ObjectIdField(required=False)
+    related = StringField(required=False)
     header = StringField()
     spec_params = ListField(StringField())
     creation = DateTimeField(required=True)
     calendar = EmbeddedDocumentField(Calendar)
     cancellations = ListField(EmbeddedDocumentField(Cancellation))
 
-
-    def from_xml(self, xml_data):
-        self.connection_id_text = xml_data.find("Core")
-        id_ = self.connection_id_text.replace("-", "0")
-        assert len(id_) == 12, "Len of ID is not equal to 12"
-        self.connection_id = ObjectId(bytes(id_, "utf-8"))
-        return self
     
     @staticmethod
     def gen_id_from_xml(xml_data):
-        id_ = xml_data.find("Core").text.replace('-', '0')
-        assert len(id_) == 12, "Len of ID is not equal to 12"
-        return id_, ObjectId(bytes(id_, "utf-8"))
+        return xml_data.find("Core").text
 
     def __str__(self):
         header = f"Connection from {self.start.location_name} to {self.end.location_name}"

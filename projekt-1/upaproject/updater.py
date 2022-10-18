@@ -15,7 +15,7 @@ from upaproject.models.cancellation import Cancellation
 cancellations = dict()
 
 def parse_stations(conn, station_iter):
-    logger.info(f"Start processing stations for connection {conn.connection_id_text}")
+    logger.info(f"Start processing stations for connection {conn.connection_id}")
     for entry in station_iter:
         location_xml = entry.find("Location")
         id_ = Location.gen_id_from_xml(location_xml)
@@ -50,18 +50,16 @@ def parse_identifiers(identifiers):
 
 def parse_planned(root):
     ids = parse_identifiers(root.find("Identifiers"))
-    conn_id_text, conn_id = Connection.gen_id_from_xml(ids["pa_id"])
-    logger.info(f"Start processing connection {conn_id_text}")
+    conn_id = Connection.gen_id_from_xml(ids["pa_id"])
+    logger.info(f"Start processing connection {conn_id}")
 
     conn = Connection.objects(connection_id = conn_id)
     if conn:
-        logger.info(
-            f"Found existing connection with id {conn_id} " \
-            f"(in text form {conn_id_text})")
+        logger.info(f"Found existing connection with id {conn_id}")
         conn = conn.first()
     else:
         conn = Connection()
-        conn.connection_id_text, conn.connection_id = conn_id_text, conn_id
+        conn.connection_id = conn_id
         conn.train = Train().from_xml(ids["tr_id"])
         params = root.findall("NetworkSpecificParameter")
         if params:
@@ -72,7 +70,7 @@ def parse_planned(root):
         conn.header = root.find("CZPTTHeader").text
         conn.creation = parse(root.find("CZPTTCreation").text)
     if ids["related_id"]:
-        conn.related = Connection.gen_id_from_xml(ids["related_id"])[1]
+        conn.related = Connection.gen_id_from_xml(ids["related_id"])
     
     # Parse all CZPTTLocation elements
     information = root.find("CZPTTInformation")
@@ -83,7 +81,8 @@ def parse_planned(root):
     if conn_id in cancellations.keys() and cancellations[conn_id]:
         conn.cancellations.extend(cancellations[conn_id])
         cancellations[conn_id] = []
-    logger.info(f"Finish processing connection {conn_id_text}")
+    logger.info(f"Finish processing connection {conn_id}")
+    conn.save()
     return conn
 
 
@@ -105,29 +104,20 @@ def parse_xml(file: Path):
     logger.warning(f"Parsing {str(file)}")
     root = ET.parse(file).getroot()
     if root.tag == "CZPTTCISMessage":
-        return parse_planned(root)
+        parse_planned(root)
     elif root.tag == "CZCanceledPTTMessage":
         parse_canceled(root)
     
 
-
 def worker(files_list):
     logger.warning(f"Starting worker with {len(files_list)} files")
     processed = 0
-    result = []
     for f in files_list:
         if f.suffix != ".xml":
             logger.warning(f"Not a XML file: {str(f)}")
             continue
-        logger.info(f"Processing {str(f)}")
-        connection = parse_xml(f)
-        # print(connection)
-        if connection:
-            result.append(connection)
+        parse_xml(f)
         processed += 1
-    #     logger.info(f"Processed {processed} files in {dir_name}\r")
-    print(result)
-    Connection.objects.insert(result)
     logger.warning(f"Processed {processed} files")
 
 
@@ -147,7 +137,7 @@ def update_documents(files_list):
     # Create list of chunks that contains files for processing in individual threads
     chunks = [all_files[x:x+per_thread] for x in range(0, files_num, per_thread)]
     logger.critical(f"Starting {thread_num} threads")
-    for f in all_files:
+    for f in all_files[0:100]:
         worker([f])
     # with ThreadPoolExecutor(max_workers=thread_num) as executor:
     #     executor.map(worker, chunks)

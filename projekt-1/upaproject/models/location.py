@@ -7,14 +7,12 @@ from bson.objectid import ObjectId
 class Location(DynamicDocument):
     meta = {'collection': 'locations'}
     
-    location_id = ObjectIdField(required=True, primary_key=True)
-    location_id_text = StringField(required=True)
+    location_id = StringField(required=True, primary_key=True)
     location_name = StringField(required=True)
     country = StringField(required=True, max_length=3, min_length=2)
-    connections = ListField(ObjectIdField(), required=True, dbref=False)
+    connections = ListField(StringField(), required=True)
     
     def from_xml(self, xml_data: ET):
-        self.location_id_text = xml_data.find("LocationPrimaryCode").text
         self.location_name = xml_data.find("PrimaryLocationName").text
         self.country = xml_data.find("CountryCodeISO").text
 
@@ -26,12 +24,10 @@ class Location(DynamicDocument):
 
     @staticmethod
     def gen_id_from_xml(xml_data: ET):
-        id_text = xml_data.find("LocationPrimaryCode").text
-        return Location.get_id_from_text(id_text)
-
+        return xml_data.find("LocationPrimaryCode").text
 
     def __str__(self):
-        return f"{self.location_name} ({self.location_id_text}, OID: {self.location_id})"
+        return f"{self.location_name} ID: {self.location_id})"
 
     def __repr__(self):
         return self.__str__()

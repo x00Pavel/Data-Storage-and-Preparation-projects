@@ -1,6 +1,7 @@
 #!/bin/python3
 import logging
 from os import environ
+from pathlib import Path
 
 import click
 from mongoengine import connect
@@ -9,7 +10,9 @@ from upaproject import default_logger as logger, terminal_size
 from upaproject.downloader import Downloader
 from upaproject.finder import find_connection
 from upaproject.updater import update_documents
+from datetime import datetime
 
+start = datetime.now()
 
 @click.group()
 @click.option("--debug/--no-debug", default=False)
@@ -17,7 +20,7 @@ from upaproject.updater import update_documents
               type=click.Choice(['local', 'remote']),
               default="local"
             )
-@click.option("-d", "--db", default="upa-new")
+@click.option("-d", "--db", default="upa-new-1")
 def cli(debug, connection, db):
     if debug:
         logger.handlers[0].setLevel(logging.DEBUG)
@@ -26,18 +29,29 @@ def cli(debug, connection, db):
         logger.handlers[0].setLevel(logging.WARNING)
         logger.setLevel(logging.WARNING)
     url = environ["MONGO_LOCAL_URI"] if connection == "local" else environ["MONGO_URI"]
-    result = connect(db, host=url)
-    logger.info(f"Connected to {url}")
-    
+    try:
+        connect(db, host=url)
+        logger.info(f"Connected to {url}")
+    except Exception as e:
+        logger.exception(f"Could not connect to database: {e}")
+
+@cli.result_callback()
+def process_result(result, debug, connection, db):
+    logger.warning(f"Execution time: {datetime.now() - start}")
 
 
-@click.command(help="Update database from source web")
-def update():
+@cli.command(help="Download data from source and extract it")
+def download():
     Downloader.prepare_files()
-    update_documents()
 
 
-@click.command(help="Find the connections between two stations")
+@cli.command(help="Update database from source web")
+@click.argument("file", nargs=-1)
+def update(file):    
+    update_documents([Path(f) for f in file])
+
+
+@cli.command(help="Find the connections between two stations")
 @click.option("-f","--from", "from_", help="Start point of the route",
               required=True)
 @click.option("-t","--to", "to_", help="End point of the route", required=True)
@@ -53,5 +67,3 @@ def find(from_, to_, date):
         logger.error(e)
         exit(1)
 
-cli.add_command(update)
-cli.add_command(find)

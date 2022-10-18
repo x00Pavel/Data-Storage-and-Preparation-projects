@@ -4,8 +4,10 @@ from pathlib import Path
 import dotenv
 from os import get_terminal_size
 
-terminal_size = get_terminal_size().columns
-
+try:
+    terminal_size = get_terminal_size().columns
+except OSError:
+    terminal_size = 80
 
 module_root = Path(__file__).parent.absolute().parent
 data_base_path = module_root.joinpath("data")

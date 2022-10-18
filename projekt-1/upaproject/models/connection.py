@@ -6,7 +6,7 @@ from upaproject.models.calendar import Calendar
 from upaproject.models.location import Location
 from upaproject.models.train import Train
 from upaproject.models.station import Station
-
+from upaproject.models.cancellation import Cancellation
 
 class Connection(DynamicDocument):
     meta = {'collection': 'connections'}
@@ -22,6 +22,8 @@ class Connection(DynamicDocument):
     spec_params = ListField(StringField())
     creation = DateTimeField(required=True)
     calendar = EmbeddedDocumentField(Calendar)
+    cancellations = ListField(EmbeddedDocumentField(Cancellation))
+
 
     def from_xml(self, xml_data):
         self.connection_id_text = xml_data.find("Core")

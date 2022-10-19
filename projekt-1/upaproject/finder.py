@@ -34,11 +34,18 @@ def find_correct_direction(connections, from_id, to_id):
             conn.header = "Reverse direction"
 
 
-def check_train_activity_at_station(connection, station_id):
+def check_train_activity_at_station_and_stations_order(connection, station_from_, station_to_):
+    idx_from_, idx_to_ = -1, -1
     for s in connection.stations:
-        if s.location.pk == station_id and s.train_activity == "0001":
-            return True
+        if s.location.pk == station_from_ and s.train_activity == "0001":
+            idx_from_ = connection.stations.index(s)
+        if s.location.pk == station_to_ and s.train_activity == "0001":
+            idx_to_ = connection.stations.index(s)
+            break
+    if idx_from_ < idx_to_ and idx_from_ != -1:
+        return True
     return False
+
 
 def find_connection(from_, to_, date):
     date_time = parse(date)
@@ -58,7 +65,7 @@ def find_connection(from_, to_, date):
     # check for train activity at required station
     result = []
     for conn in conn_objects:
-        if check_train_activity_at_station(conn, from_) and check_train_activity_at_station(conn, to_):
+        if check_train_activity_at_station_and_stations_order(conn, from_, to_):
             result.append(conn)
             logger.debug(f"Connection {conn.connection_id} is OK")
         else:

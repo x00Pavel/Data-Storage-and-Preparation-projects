@@ -35,7 +35,7 @@ class Station(EmbeddedDocument):
         return self
     
     def __str__(self):
-        return f"|-> {self.location.location_name} {self.time_arrival} - {self.time_departure}"
+        return f"|-> {self.location.location_name} {self.time_arrival.time() if self.time_arrival else 'not specified'} - {self.time_departure.time() if self.time_departure else 'not specified'}"
 
     def __repr__(self):
         return self.__str__()

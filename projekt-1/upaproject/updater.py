@@ -34,7 +34,7 @@ def parse_stations(conn, station_iter):
         
         if conn.connection_id not in location.connections:
             location.connections.append(conn.connection_id)
-        station.location = location.to_dbref()
+        station.location = location.pk
         location.save()
         conn.stations.append(station)
     

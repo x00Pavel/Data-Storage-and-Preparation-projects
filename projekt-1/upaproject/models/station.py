@@ -11,7 +11,7 @@ class Station(EmbeddedDocument):
     train_activity = StringField()
     train_type = IntField()
     operational_train_num = IntField()
-    location = LazyReferenceField(Location, required=True, dbref=True, passthrough=True)
+    location = LazyReferenceField(Location, required=True, dbref=False, passthrough=True)
 
     def from_xml(self, xml_data):
         timing = xml_data.find("TimingAtLocation")

@@ -53,6 +53,9 @@ def find_connection(from_, to_, date):
 
     pipeline = get_intersac_pipeline(from_, to_, date_time)
     result = location.Location.objects().aggregate(pipeline).next()["list"]
+    if not list(result):
+        raise ValueError("Connections are not found")
+
     logger.debug(f"Found {len(result)} connections")
     final_conns = [conn["_id"] for conn in result if check_bitmap_for_date(date_time, conn["calendar"])]
 

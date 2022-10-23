@@ -20,7 +20,7 @@ start = datetime.now()
               type=click.Choice(['local', 'remote']),
               default="local"
             )
-@click.option("-d", "--db", default="upa-new-1")
+@click.option("-d", "--db", default="upa-db")
 def cli(debug, connection, db):
     if debug:
         logger.handlers[0].setLevel(logging.DEBUG)

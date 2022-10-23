@@ -107,9 +107,6 @@ def worker(files_list):
     logger.warning(f"Starting worker with {len(files_list)} files")
     processed = 0
     for f in files_list:
-        if f.suffix != ".xml":
-            logger.warning(f"Not a XML file: {str(f)}")
-            continue
         try:
             parse_xml(f)
             processed += 1
@@ -128,7 +125,7 @@ def update_documents(files_list):
     for d in files_list:
         if d.is_dir():
             all_files.extend([f for f in d.iterdir() if f.suffix == ".xml"])
-        elif d.is_file() and d.suffix == ".xml":
+        elif d.is_file(): #and d.suffix == ".xml":
             all_files.append(d)
     files_num = len(all_files)
     per_thread = files_num // thread_num or 1

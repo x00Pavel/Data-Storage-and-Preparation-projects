@@ -1,3 +1,4 @@
+from cmath import log
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -33,12 +34,11 @@ def parse_stations(conn, station_iter):
             location.save()
 
         station = Station().from_xml(entry)
-
+        station.location = location.pk
         
         if station.train_activity == '0001' and conn.connection_id not in location.connections:
             location.connections.append(conn.connection_id)
             location.save()
-        station.location = location.pk
         conn.stations.append(station)
     
 
@@ -69,8 +69,11 @@ def parse_planned(root):
             # Lambda: convert ElementTree to string with unicode encoding
             for p in map(lambda p: ET.tostring(p, encoding="unicode"), params):
                 conn.spec_params.append(p)
-
-        conn.header = root.find("CZPTTHeader").text
+        try:
+            conn.header = root.find("CZPTTHeader").text
+        except AttributeError:
+            logger.warning("No header found")
+            conn.stations = "No header"
         conn.creation = parse(root.find("CZPTTCreation").text)
     if ids["related_id"]:
         conn.related = Connection.gen_id_from_xml(ids["related_id"])
@@ -83,7 +86,6 @@ def parse_planned(root):
     conn.calendar = Calendar().from_xml(information.find("PlannedCalendar"))
     logger.info(f"Finish processing connection {conn_id}")
     conn.save()
-    return conn
 
 
 def parse_canceled(root):
@@ -114,21 +116,23 @@ def worker(files_list):
             parse_xml(f)
             processed += 1
             bar.next()
-        except ET.ParseError:
+        except Exception as e:
             logger.error(f"Error parsing file {str(f)}")
+            logger.exception(e)
+            raise
     logger.warning(f"Processed {processed} files")
 
 
 def update_documents(files_list):
     global bar
-    thread_num = 100
+    thread_num = 200
     all_files = []
     files_list = files_list or list(data_base_path.iterdir())
     
     for d in files_list:
         if d.is_dir():
             all_files.extend([f for f in d.iterdir() if f.suffix == ".xml"])
-        elif d.is_file(): #and d.suffix == ".xml":
+        elif d.is_file():
             all_files.append(d)
     files_num = len(all_files)
     per_thread = files_num // thread_num or 1

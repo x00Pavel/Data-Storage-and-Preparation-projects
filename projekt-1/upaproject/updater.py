@@ -142,9 +142,7 @@ def update_documents(files_list):
         
     bar = Bar("Processing", max=files_num)
     with ThreadPoolExecutor(max_workers=thread_num) as executor:
-        for r in executor.map(worker, chunks):
-            if r:
-                logger.exception(r)
+        executor.map(worker, chunks)
     bar.finish()
     logger.info(f"Now processing {len(cancellations)} canceled connections")
     for k, v in  cancellations.items():

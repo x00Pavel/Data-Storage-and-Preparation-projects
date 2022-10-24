@@ -63,7 +63,7 @@ def find(from_, to_, date):
         for conn in connections:
             print("="*terminal_size)
             print(conn)
-    except ValueError as e:
+    except TypeError or ValueError as e:
         logger.error(e)
         exit(1)
 

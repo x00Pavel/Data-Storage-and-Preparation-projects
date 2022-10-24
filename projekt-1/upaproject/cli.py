@@ -31,7 +31,7 @@ def cli(debug, connection, db):
     url = environ["MONGO_LOCAL_URI"] if connection == "local" else environ["MONGO_URI"]
     try:
         connect(db, host=url)
-        logger.info(f"Connected to {url}")
+        logger.info(f"Connected to {url} db {db}")
     except Exception as e:
         logger.exception(f"Could not connect to database: {e}")
 

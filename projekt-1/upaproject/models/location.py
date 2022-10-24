@@ -10,8 +10,8 @@ class Location(DynamicDocument):
     location_id = StringField(required=True, primary_key=True)
     location_name = StringField(required=True)
     country = StringField(required=True, max_length=3, min_length=2)
-    connections = ListField(StringField(), required=True)
-    
+    connections = ListField(StringField())
+
     def from_xml(self, xml_data: ET):
         self.location_name = xml_data.find("PrimaryLocationName").text
         self.country = xml_data.find("CountryCodeISO").text

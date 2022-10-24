@@ -1,8 +1,9 @@
 from cmath import log
+from pprint import pprint
 from bitmap import BitMap
 from dateutil.parser import parse
 
-from upaproject import get_intersac_pipeline, default_logger as logger
+from upaproject import get_cancellation_pipeline, get_intersac_pipeline, default_logger as logger
 from upaproject.models import cancellation, connection, location, station
 
 def check_bitmap_for_date(date, calendar):
@@ -15,23 +16,12 @@ def check_bitmap_for_date(date, calendar):
         bitmap = BitMap.fromstring(calendar.bitmap)
         logger.debug(f"Validity period: {calendar.start_date} - {calendar.end_date}")
         days_count = (date - calendar.start_date).days
+    if days_count < 0:
+        logger.debug("Date is before validity period")
+        return False
     logger.debug(f"Number of days {days_count}")
     logger.debug(f"Bit on position {days_count}: {bitmap[days_count]}")
     return bitmap.test(days_count)
-
-# def find_duplicates(connections):
-#     hashes = {}
-#     for conn in connections:
-#         h = hash((conn["calendar"]["bitmap"], conn["calendar"]["start_date"], conn["calendar"]["end_date"]))
-#         hashes[h] = conn
-#     return hashes.values()
-
-def find_correct_direction(connections, from_id, to_id):
-    for conn in connections:
-        if conn.start.location_id == from_id and conn.end.location_id == to_id:
-            conn.header = "Correct direction"
-        else:
-            conn.header = "Reverse direction"
 
 
 def check_train_activity_at_station_and_stations_order(connection, station_from_, station_to_):
@@ -47,31 +37,53 @@ def check_train_activity_at_station_and_stations_order(connection, station_from_
     return False
 
 
+def check_direction(conn, from_, to_):
+    idx_from = idx_to = -1
+
+    for i, s in enumerate(conn.stations):
+        if s.location.location_name == from_:
+            idx_from = i
+        if s.location.location_name == to_:
+            idx_to = i
+            break
+    if idx_from != -1 or idx_to != -1:
+        return False
+    return idx_from < idx_to
+
+
 def find_connection(from_, to_, date):
     date_time = parse(date)
     logger.debug(f"Looking for connection from {from_} to {to_} on {date_time}")
-
+    try:
+        from_index, to_index = location.Location.objects(location_name=from_)[0].pk, location.Location.objects(location_name=to_)[0].pk
+    except IndexError:
+        logger.error(f"Location {from_} or {to_} not found")
+        return None
     pipeline = get_intersac_pipeline(from_, to_, date_time)
+
     result = location.Location.objects().aggregate(pipeline).next()["list"]
     if not list(result):
         raise ValueError("Connections are not found")
-
     logger.debug(f"Found {len(result)} connections")
-    final_conns = [conn["_id"] for conn in result if check_bitmap_for_date(date_time, conn["calendar"])]
 
-    # check for cancellations 
-    cancels = cancellation.Cancellation.objects(connection_id__in=final_conns, calendar__start_date__lte=date_time, calendar__end_date__gte=date_time)
-    cancels = [cancel.connection_id for cancel in cancels if check_bitmap_for_date(date_time, cancel.calendar)]
-    final_conns = [conn for conn in final_conns if conn not in cancels]
-    conn_objects = connection.Connection.objects(_id__in=final_conns)
-
-    # check for train activity at required station
+    pipeline = get_cancellation_pipeline([conn["_id"] for conn in result], date_time, from_index, to_index)
     result = []
-    for conn in conn_objects:
-        if check_train_activity_at_station_and_stations_order(conn, from_, to_):
-            result.append(conn)
-            logger.debug(f"Connection {conn.connection_id} is OK")
-        else:
-            logger.debug(f"Connection {conn.connection_id} does not have train activity at {from_} or {to_}")
-    # conn_objects = [conn_objects[i] for i in ok_index]
-    return result
+    for canc in cancellation.Cancellation.objects().aggregate(pipeline):
+        bitmap_check = check_bitmap_for_date(date_time, canc["connection"]['calendar'])
+        if len(canc["validity"]) == 0 and bitmap_check:
+            result.append(canc["connection"])
+            continue
+        for cancel_calendar in canc["validity"]:
+            if not check_bitmap_for_date(date_time, cancel_calendar):
+                logger.debug(f"Connection {canc['_id']} is not cancelled")
+                if bitmap_check:
+                    logger.debug(f"Connection {canc['_id']} is valid")
+
+                    result.append(canc["connection"])
+                    continue
+            logger.debug(f"Connection {canc['_id']} is cancelled")
+
+    conn_objects = [connection.Connection(**conn) for conn in result]
+    # check for train activity at required station
+    return conn_objects
+

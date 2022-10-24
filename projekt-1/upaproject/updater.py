@@ -29,13 +29,16 @@ def parse_stations(conn, station_iter):
             location = Location()
             location.from_xml(location_xml)
             location.location_id = id_
+            location.connections = []
+            location.save()
+
         station = Station().from_xml(entry)
 
         
-        if conn.connection_id not in location.connections:
+        if station.train_activity == '0001' and conn.connection_id not in location.connections:
             location.connections.append(conn.connection_id)
+            location.save()
         station.location = location.pk
-        location.save()
         conn.stations.append(station)
     
 
@@ -135,7 +138,9 @@ def update_documents(files_list):
         
     bar = Bar("Processing", max=files_num)
     with ThreadPoolExecutor(max_workers=thread_num) as executor:
-        executor.map(worker, chunks)
+        for r in executor.map(worker, chunks):
+            if r:
+                logger.exception(r)
     bar.finish()
     logger.info(f"Now processing {len(cancellations)} canceled connections")
     for k, v in  cancellations.items():

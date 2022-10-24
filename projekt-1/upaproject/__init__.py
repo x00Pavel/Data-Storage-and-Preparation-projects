@@ -78,3 +78,57 @@ def get_intersac_pipeline(name_from, name_to, date_time):
                 }
             }
         ]
+
+
+def get_cancellation_pipeline(connection_ids: list, date_time, from_id, to_id):
+    return [
+        {'$match': {'connection_id': {'$in': connection_ids}}},
+        {'$group': {
+            '_id': '$connection_id', 
+            'validity': {
+                '$push': {
+                    '$cond': {
+                        'if': {
+                            '$and': [
+                                {'$lte': ['$calendar.start_date', date_time]},
+                                {'$lte': [date_time, '$calendar.end_date']}
+                            ]
+                            }, 
+                            'then': '$calendar', 
+                            'else': '$$REMOVE'
+                        }
+                    }
+                }
+            }
+        },
+        {'$lookup': {
+            'from': 'connections', 
+            'localField': '_id', 
+            'foreignField': '_id', 
+            'as': 'connection'
+            }
+        },
+        {'$project': {
+            '_id': '$_id', 
+            'validity': '$validity', 
+            'connection': {'$arrayElemAt': ['$connection', 0]}
+            }
+        },
+        {'$addFields': {
+            'from_index': {
+                '$indexOfArray': [
+                    '$connection.stations.location', from_id,
+                ]
+            }, 
+            'to_index': {
+                '$indexOfArray': [
+                    '$connection.stations.location', to_id
+                ]
+            }
+            }
+    },
+        {'$match': {
+            '$expr': {'$lt': ['$from_index', '$to_index']}
+            }
+        }
+    ]

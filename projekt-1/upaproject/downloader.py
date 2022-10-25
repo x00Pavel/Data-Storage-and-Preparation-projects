@@ -43,24 +43,27 @@ class Downloader:
         """
         logger.info(f"Downloading files to {dir}")
         for l in data.find_all("a"):
-            if not l.text.endswith(".zip"):
-                logger.debug(f"Skipping {l.text}: not a ZIP extension")
-                continue
-            dst = dir.joinpath(l.text)
-            dst_xml = dir.joinpath(dst.stem)
-            if dst.exists() and dst.stat().st_size > 0:
-                logger.debug(f"Skipping {str(dst)}: ZIP already exists")
-                continue
-            elif dst_xml.exists() and dst_xml.stat().st_size > 0:
-                logger.debug(f"Skipping {l.text}: XML already exists")
-                continue
-            
-            with urlopen(base_source_url + l["href"]) as f:
-                zip_data = f.read()
-            assert zip_data, "No data downloaded"
-            with dst.open("wb") as zip_f:
-                zip_f.write(zip_data)
-                logger.debug(f"Downloaded {dir}/{l.text}")
+            try:
+                if not l.text.endswith(".zip"):
+                    logger.debug(f"Skipping {l.text}: not a ZIP extension")
+                    continue
+                dst = dir.joinpath(l.text)
+                dst_xml = dir.joinpath(dst.stem)
+                if dst.exists() and dst.stat().st_size > 0:
+                    logger.debug(f"Skipping {str(dst)}: ZIP already exists")
+                    continue
+                elif dst_xml.exists() and dst_xml.stat().st_size > 0:
+                    logger.debug(f"Skipping {l.text}: XML already exists")
+                    continue
+                
+                with urlopen(base_source_url + l["href"]) as f:
+                    zip_data = f.read()
+                assert zip_data, "No data downloaded"
+                with dst.open("wb") as zip_f:
+                    zip_f.write(zip_data)
+                    logger.debug(f"Downloaded {dir}/{l.text}")
+            except Exception as e:
+                logger.exception(f"Could not download {l.text}: {e}")
         logger.warning(f"Downloaded all files into {dir}")
 
     @classmethod
@@ -73,27 +76,28 @@ class Downloader:
         # Get list of file URLs in the directory
         sub_dir = Path(f"{data_base_path}/{url[1]}")
         sub_dir.mkdir(exist_ok=True)
+        try:
+            if url[0].endswith(".zip"):
+                logger.debug(f"Downloading single ZIP file {url[0]}")
+                dst = sub_dir.joinpath(url[0].split("/")[-1])
+                with urlopen(url[0]) as f:
+                    zip_data = f.read()
+                assert zip_data, "No data downloaded"
+                with dst.open("wb") as zip_f:
+                    zip_f.write(zip_data)
+                check_output(["unzip", "-o", str(dst), "-d", str(sub_dir)], encoding="utf-8")
+                logger.debug(f"Downloaded {dst}")
+            else:
+                r = requests.get(url[0])
+                assert r.ok, f"GET {url[0]} failed with {r.status_code}"
+                data = bs4.BeautifulSoup(r.text, "html.parser")
 
-        if url[0].endswith(".zip"):
-            logger.debug(f"Downloading single ZIP file {url[0]}")
-            dst = sub_dir.joinpath(url[0].split("/")[-1])
-            with urlopen(url[0]) as f:
-                zip_data = f.read()
-            assert zip_data, "No data downloaded"
-            with dst.open("wb") as zip_f:
-                zip_f.write(zip_data)
-            check_output(["unzip", "-o", str(dst), "-d", str(sub_dir)], encoding="utf-8")
-            logger.debug(f"Downloaded {dst}")
-        else:
-            r = requests.get(url[0])
-            assert r.ok, f"GET {url[0]} failed with {r.status_code}"
-            data = bs4.BeautifulSoup(r.text, "html.parser")
-
-            # Download all files in a directory
-            cls.download_files_in_dir(data, sub_dir)
-            Downloader.unzip_files(sub_dir)
-            logger.debug(f"Finished processing {url[0]}")
-
+                # Download all files in a directory
+                cls.download_files_in_dir(data, sub_dir)
+                Downloader.unzip_files(sub_dir)
+                logger.debug(f"Finished processing {url[0]}")
+        except Exception as e:
+            logger.exception(f"Error processing {url[0]}: {e}")
     @classmethod
     def prepare_files(cls):
         """

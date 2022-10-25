@@ -37,11 +37,12 @@ def cli(debug, connection, db):
 
 @cli.result_callback()
 def process_result(result, debug, connection, db):
-    logger.warning(f"Execution time: {datetime.now() - start}")
+    print(f"Execution time: {datetime.now() - start}")
 
 
 @cli.command(help="Download data from source and extract it")
 def download():
+    print("Downloading data...")
     Downloader.prepare_files()
 
 

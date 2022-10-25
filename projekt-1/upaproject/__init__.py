@@ -82,20 +82,31 @@ def get_intersac_pipeline(name_from, name_to, date_time):
 
 def get_cancellation_pipeline(connection_ids: list, date_time, from_id, to_id):
     return [
-        {'$match': {'connection_id': {'$in': connection_ids}}},
-        {'$group': {
-            '_id': '$connection_id', 
-            'validity': {
-                '$push': {
-                    '$cond': {
-                        'if': {
+        {
+        '$match': {
+            '_id': {
+                '$in': connection_ids
+            }
+        }
+        }, {
+            '$project': {
+                '_id': 1, 
+                'validity': {
+                    '$filter': {
+                        'input': '$calendar', 
+                        'as': 'cal', 
+                        'cond': {
                             '$and': [
-                                {'$lte': ['$calendar.start_date', date_time]},
-                                {'$lte': [date_time, '$calendar.end_date']}
+                                {
+                                    '$lte': [
+                                        '$$cal.start_date', date_time
+                                    ]
+                                }, {
+                                    '$lte': [
+                                        date_time, '$$cal.end_date'
+                                    ]
+                                }
                             ]
-                            }, 
-                            'then': '$calendar', 
-                            'else': '$$REMOVE'
                         }
                     }
                 }

@@ -75,26 +75,32 @@ def parse_planned(root):
             logger.warning("No header found")
             conn.stations = "No header"
         conn.creation = parse(root.find("CZPTTCreation").text)
-    if ids["related_id"]:
-        conn.related = Connection.gen_id_from_xml(ids["related_id"])
+        information = root.find("CZPTTInformation")
+        parse_stations(conn, information.iter("CZPTTLocation"))
     
-    # Parse all CZPTTLocation elements
-    information = root.find("CZPTTInformation")
-    parse_stations(conn, information.iter("CZPTTLocation"))
-    conn.start = conn.stations[0].location.fetch().to_dbref()
-    conn.end = conn.stations[-1].location.fetch().to_dbref()
-    conn.calendar = Calendar().from_xml(information.find("PlannedCalendar"))
-    logger.info(f"Finish processing connection {conn_id}")
+        if ids["related_id"]:
+            conn.related = Connection.gen_id_from_xml(ids["related_id"])
+        
+        # Parse all CZPTTLocation elements
+        conn.start = conn.stations[0].location.fetch().to_dbref()
+        conn.end = conn.stations[-1].location.fetch().to_dbref()
+        conn.calendar = Calendar().from_xml(information.find("PlannedCalendar"))
     conn.save()
+    logger.info(f"Finish processing connection {conn_id}")
 
 
 def parse_canceled(root):
     ids = root.findall("PlannedTransportIdentifiers")
-    cancellation = Cancellation()
-    cancellation.connection_id = Connection.gen_id_from_xml(ids[0])
+    cancel_id = Connection.gen_id_from_xml(ids[0])
+    cancellation = Cancellation.objects(_id=cancel_id)
+    if cancellation:
+        cancellation = cancellation.first()
+    else:
+        cancellation = Cancellation()
+        cancellation.connection_id = cancel_id
     logger.info(f"Started processing cancellation for connection {cancellation.connection_id}")
-    cancellation.train = Train().from_xml(ids[1])
-    cancellation.calendar = Calendar().from_xml(root.find("PlannedCalendar"))    
+    cancellation.train.append(Train().from_xml(ids[1]))
+    cancellation.calendar.append(Calendar().from_xml(root.find("PlannedCalendar")))    
     cancellation.save()
     logger.warning("Finish processing Cancelled connection")
     
@@ -125,7 +131,7 @@ def worker(files_list):
 
 def update_documents(files_list):
     global bar
-    thread_num = 200
+    thread_num = 100
     all_files = []
     files_list = files_list or list(data_base_path.iterdir())
     
@@ -145,10 +151,3 @@ def update_documents(files_list):
         executor.map(worker, chunks)
     bar.finish()
     logger.info(f"Now processing {len(cancellations)} canceled connections")
-    for k, v in  cancellations.items():
-        conn = Connection.objects(connection_id=k).first()
-        if conn:
-            conn.cancellations.extend(v)
-            conn.save()
-        else:
-            logger.warning(f"Connection {k} not found in database")
